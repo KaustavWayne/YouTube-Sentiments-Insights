@@ -1,5 +1,11 @@
+import sys
+import os
 import pytest
-from flask_app.app import app  # adjust if your app is in a different folder
+
+# Add project root to Python path so 'flask_app' can be imported
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from flask_app.app import app  # Now Python can find it
 
 @pytest.fixture
 def client():
