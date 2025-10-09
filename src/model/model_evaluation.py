@@ -141,7 +141,7 @@ def main():
 
     # ✅ Now safely initialize MLflow and DagsHub
     mlflow.set_tracking_uri(f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow")
-    dagshub.init(repo_owner=repo_owner, repo_name=repo_name, mlflow=True)
+    #dagshub.init(repo_owner=repo_owner, repo_name=repo_name, mlflow=True)
     mlflow.set_experiment('dvc-pipeline-runs')
 
     mlflow.set_experiment('dvc-pipeline-runs')
