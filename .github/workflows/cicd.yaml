@@ -5,6 +5,13 @@ on: push
 jobs:
   model-deployment:
     runs-on: ubuntu-latest
+    env:
+      DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+      DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
+      DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -28,10 +35,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Configure DagsHub DVC remote
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-          DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
-          DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
         run: |
           dvc remote add -d origin https://dagshub.com/$DAGSHUB_USER/$DAGSHUB_REPO.dvc || true
           dvc remote modify origin --local auth basic
@@ -39,14 +42,10 @@ jobs:
           dvc remote modify origin --local password $DAGSHUB_PAT
 
       - name: Run DVC pipeline
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           dvc repro
 
       - name: Push DVC-tracked data to DagsHub
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           dvc push
 
@@ -57,8 +56,6 @@ jobs:
 
       - name: Commit and push changes
         if: ${{ github.actor != 'github-actions[bot]' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add .
           git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
@@ -69,20 +66,29 @@ jobs:
           pip install pytest
 
       - name: Run model loading test
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_load_model.py
 
       - name: Run model signature test
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_signature.py
 
       - name: Run model performance test
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_performance.py
 
       - name: Promote model to production
         if: success()
-        run: python scripts/promote_model.py
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+        run: |
+          python scripts/promote_model.py
 
       - name: Start Flask App
         run: |
@@ -93,9 +99,6 @@ jobs:
           pytest scripts/test_flask_api.py
 
       - name: Log in to Docker Hub
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
