@@ -6,9 +6,21 @@ import logging
 import os
 import dagshub
 
-# Set up MLflow tracking URI
-mlflow.set_tracking_uri("https://dagshub.com/KaustavWayne/YouTube-Sentiments-Insights.mlflow")
-dagshub.init(repo_owner='KaustavWayne', repo_name='YouTube-Sentiments-Insights', mlflow=True)
+# ✅ Add this section BEFORE initializing MLflow or DagsHub
+dagshub_token = os.getenv("DAGSHUB_PAT")
+if not dagshub_token:
+    raise EnvironmentError("DAGSHUB_PAT environment variable is not set")
+
+os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_token
+os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_token
+
+dagshub_url = "https://dagshub.com"
+repo_owner = "KaustavWayne"
+repo_name = "YouTube-Sentiments-Insights"
+
+# ✅ Correct MLflow & DagsHub setup
+mlflow.set_tracking_uri(f"{dagshub_url}/{repo_owner}/{repo_name}.mlflow")
+dagshub.init(repo_owner=repo_owner, repo_name=repo_name, mlflow=True)
 
 
 # logging configuration
