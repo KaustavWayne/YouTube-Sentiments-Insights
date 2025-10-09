@@ -27,6 +27,18 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Configure DagsHub DVC remote
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+          DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}   # your DagsHub username
+          DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}   # your repo name
+        run: |
+          # Add default DVC remote for this run
+          dvc remote add -d origin https://dagshub.com/$DAGSHUB_USER/$DAGSHUB_REPO.dvc || true
+          dvc remote modify origin --local auth basic
+          dvc remote modify origin --local user $DAGSHUB_USER
+          dvc remote modify origin --local password $DAGSHUB_PAT
+
       - name: Run pipeline
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
