@@ -30,10 +30,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install -r flask_app/requirements.txt
 
+      - name: Install DVC
+        run: |
+          pip install dvc
 
       - name: Configure DagsHub DVC remote
         run: |
