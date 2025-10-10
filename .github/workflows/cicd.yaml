@@ -1,9 +1,12 @@
-name: CICD Pipeline (DagsHub + Hugging Face)
+name: CI Pipeline (DagsHub + Hugging Face)
 
-on: push
+on:
+  push:
+    branches:
+      - main
 
 jobs:
-  model-deployment:
+  project-testing:
     runs-on: ubuntu-latest
 
     env:
@@ -17,12 +20,12 @@ jobs:
       HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Python environment
-      - name: Set up Python
+      # 2️⃣ Setup Python
+      - name: Setup Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.10'
@@ -40,72 +43,33 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install --upgrade huggingface_hub
 
-      # 5️⃣ Configure DagsHub DVC remote
-      - name: Configure DagsHub DVC remote
-        run: |
-          dvc remote add -d origin https://dagshub.com/$DAGSHUB_USER/$DAGSHUB_REPO.dvc || true
-          dvc remote modify origin --local auth basic
-          dvc remote modify origin --local user $DAGSHUB_USER
-          dvc remote modify origin --local password $DAGSHUB_PAT
-
-      # 6️⃣ Run DVC pipeline
+      # 5️⃣ Run DVC pipeline
       - name: Run DVC pipeline
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: dvc repro
 
-      # 7️⃣ Push DVC-tracked data
-      - name: Push DVC-tracked data to DagsHub
-        run: dvc push
-
-      # 8️⃣ Configure Git
-      - name: Configure Git
+      # 6️⃣ Run model tests
+      - name: Run model tests
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          pytest scripts/test_load_model.py
+          pytest scripts/test_model_signature.py
+          pytest scripts/test_model_performance.py
 
-      # 9️⃣ Commit & push changes
-      - name: Commit and push changes
-        if: ${{ github.actor != 'github-actions[bot]' }}
-        run: |
-          git add .
-          git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
-          git push origin ${{ github.ref_name }}
-
-      # 🔟 Install pytest
-      - name: Install test dependencies
-        run: pip install pytest
-
-      # 11️⃣ Run model tests
-      - name: Run model loading test
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: pytest scripts/test_load_model.py
-
-      - name: Run model signature test
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: pytest scripts/test_model_signature.py
-
-      - name: Run model performance test
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: pytest scripts/test_model_performance.py
-
-      # 14️⃣ Promote model
+      # 7️⃣ Promote model
       - name: Promote model to production
         if: success()
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: python scripts/promote_model.py
 
-      # 15️⃣ Start Flask App locally for testing
-      - name: Start Flask App
-        env:
-          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
-        run: nohup python flask_app/app.py &
-
-      # 16️⃣ Run Flask API tests
-      - name: Start Flask App and run API tests
+      # 8️⃣ Run Flask API tests locally
+      - name: Run Flask API tests
+        if: success()
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
@@ -114,24 +78,26 @@ jobs:
           curl -I http://127.0.0.1:7860 || (cat flask.log && exit 1)
           pytest scripts/test_flask_api.py --maxfail=1 --disable-warnings -q
 
-      # 17️⃣ Log in to Docker Hub
+      # 9️⃣ Log in to Docker Hub
       - name: Log in to Docker Hub
-        run: echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+        if: success()
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 18️⃣ Build Docker image
+      # 🔟 Build Docker image
       - name: Build Docker image
-        run: docker build -t kaustavwayne/youtube-chrome-plugin .
+        if: success()
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/youtube-chrome-plugin:latest .
 
-      # 19️⃣ Tag Docker image
-      - name: Tag Docker image
-        run: docker tag kaustavwayne/youtube-chrome-plugin kaustavwayne/youtube-chrome-plugin:latest
-
-      # 20️⃣ Push Docker image to Docker Hub
+      # 1️⃣1️⃣ Push Docker image to Docker Hub
       - name: Push Docker image to Docker Hub
-        run: docker push kaustavwayne/youtube-chrome-plugin:latest
+        if: success()
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/youtube-chrome-plugin:latest
 
-      # 21️⃣ Deploy Flask Docker App to Hugging Face Spaces
-      - name: Deploy Flask App to Hugging Face
+      # 1️⃣2️⃣ Deploy Docker image to Hugging Face Space
+      - name: Deploy Docker image to Hugging Face Space
         if: success()
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -139,8 +105,7 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
-          pip install --upgrade huggingface_hub
-          python - <<'EOF'
+          python - <<EOF
           from huggingface_hub import HfApi
           import os
 
@@ -151,6 +116,8 @@ jobs:
           repo_name = "youtube-chrome-plugin"
 
           api = HfApi()
+
+          # Create the Space if it doesn't exist
           api.create_repo(
               repo_id=f"{HF_USERNAME}/{repo_name}",
               repo_type="space",
@@ -159,19 +126,20 @@ jobs:
               token=HF_TOKEN
           )
 
-          dockerfile_content = (
-              f"FROM {DOCKER_USERNAME}/youtube-chrome-plugin:latest\n"
-              f"ENV DAGSHUB_PAT={DAGSHUB_PAT}\n"
-              f"ENV NLTK_DATA=/usr/local/share/nltk_data\n"
-              f"RUN python -m nltk.downloader stopwords wordnet -d /usr/local/share/nltk_data\n"
-              f"WORKDIR /app\n"
-              f"COPY flask_app /app/flask_app\n"
-              f"COPY requirements.txt /app/\n"
-              f"RUN pip install --no-cache-dir -r requirements.txt\n"
-              f"EXPOSE 7860\n"
-              f'CMD ["python", "flask_app/app.py"]\n'
-          )
+          # Prepare Dockerfile for HF Space
+          dockerfile_content = f"""
+          FROM {DOCKER_USERNAME}/youtube-chrome-plugin:latest
 
+          ENV DAGSHUB_PAT={DAGSHUB_PAT}
+          ENV NLTK_DATA=/usr/local/share/nltk_data
+          RUN python -m nltk.downloader stopwords wordnet -d /usr/local/share/nltk_data
+
+          EXPOSE 7860
+
+          CMD ["gunicorn", "-b", "0.0.0.0:7860", "flask_app.app:app", "--workers", "2"]
+          """
+
+          # Upload Dockerfile
           api.upload_file(
               path_or_fileobj=dockerfile_content.encode("utf-8"),
               path_in_repo="Dockerfile",
