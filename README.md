@@ -1,9 +1,71 @@
-YouTube_Sentiments_Insights
-==============================
+# 🎬 YouTube Chrome Comment Analyzer
 
-A small Ml Project
+<p align="center">
+  <img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube">
+</p>
 
-Project Organization
+![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-2.3.3-orange?logo=flask&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-latest-blue?logo=docker&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-Spaces-yellow?logo=huggingface&logoColor=black)
+![MLflow](https://img.shields.io/badge/MLflow-2.17.0-lightgrey?logo=mlflow&logoColor=black)
+![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-yes-red?logo=google-chrome&logoColor=white)
+
+---
+
+## ✨ Overview
+The **YouTube Chrome Comment Analyzer** is a Chrome extension and web tool that fetches YouTube comments for any video, performs sentiment analysis, and provides a detailed visualization including:
+
+- Sentiment trend over time 📈
+- Word cloud of comments ☁️
+- Top comments with sentiment labels 🏆
+- Summary metrics like total comments, unique commenters, and average sentiment score
+
+---
+
+## 🚀 Demo
+Check out a quick demo of the plugin in action:  
+
+🎥 **[Watch Demo](https://huggingface.co/spaces/dystopiareloaded7/youtube-chrome-plugin)**  
+
+> Tip: You can also embed a short GIF/video of usage here using markdown:
+>
+> ```markdown
+> ![Demo](demo.gif)
+> ```
+
+---
+
+## 🛠 Tech Stack
+- **Python 3.10**
+- **Flask** for backend API
+- **Docker** for containerized deployment
+- **Hugging Face Spaces** for hosting
+- **MLflow** for model tracking
+- **Chrome Extension API** for frontend integration
+- **YouTube Data API v3** for fetching comments
+- **NLTK** for text preprocessing
+- **Matplotlib / Wordcloud** for visualizations
+
+---
+
+## ⚡ Features
+- Fetch up to 500 YouTube comments per video
+- Perform real-time sentiment analysis
+- Visualize sentiment distribution, trends, and word cloud
+- Display top 25 comments with sentiment scores
+- Easy integration with Hugging Face deployment
+
+---
+
+## 💻 Usage
+1. Install the Chrome Extension locally or via Hugging Face Space.
+2. Open a YouTube video and click the extension icon.
+3. View comments analysis and visualizations directly in the popup.
+
+---
+
+## 🗂 Project Organization
 ------------
 
     ├── LICENSE
@@ -55,3 +117,20 @@ Project Organization
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+---
+
+## 💡 Developer Quotes
+> “The best way to predict the future is to analyze the past — one YouTube comment at a time.”  
+> — Kaustav Roy Chowdhury
+
+---
+
+## 📄 Author
+**Kaustav Roy Chowdhury**  
+YouTube Chrome Comment Analyzer © 2025
+
+---
+
+## 📜 License
+All rights reserved © 2025 Kaustav Roy Chowdhury
