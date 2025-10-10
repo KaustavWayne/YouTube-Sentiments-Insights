@@ -5,6 +5,7 @@ on: push
 jobs:
   model-deployment:
     runs-on: ubuntu-latest
+
     env:
       DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
       DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
@@ -14,14 +15,17 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
     steps:
+      # 1️⃣ Checkout repository
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # 2️⃣ Setup Python environment
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: '3.10'
 
+      # 3️⃣ Cache pip dependencies for faster builds
       - name: Cache pip dependencies
         uses: actions/cache@v3
         with:
@@ -30,10 +34,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      # 4️⃣ Install Python dependencies
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
+      # 5️⃣ Configure DVC to connect with DagsHub remote storage
       - name: Configure DagsHub DVC remote
         run: |
           dvc remote add -d origin https://dagshub.com/$DAGSHUB_USER/$DAGSHUB_REPO.dvc || true
@@ -41,19 +47,23 @@ jobs:
           dvc remote modify origin --local user $DAGSHUB_USER
           dvc remote modify origin --local password $DAGSHUB_PAT
 
+      # 6️⃣ Reproduce pipeline using DVC
       - name: Run DVC pipeline
         run: |
           dvc repro
 
+      # 7️⃣ Push DVC-tracked data and models to DagsHub
       - name: Push DVC-tracked data to DagsHub
         run: |
           dvc push
 
+      # 8️⃣ Configure Git for committing pipeline outputs
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
+      # 9️⃣ Commit and push updated files if any DVC outputs changed
       - name: Commit and push changes
         if: ${{ github.actor != 'github-actions[bot]' }}
         run: |
@@ -61,28 +71,33 @@ jobs:
           git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
           git push origin ${{ github.ref_name }}
 
+      # 🔟 Install pytest for running automated tests
       - name: Install test dependencies
         run: |
           pip install pytest
 
+      # 11️⃣ Test 1 - Model loading validation
       - name: Run model loading test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_load_model.py
 
+      # 12️⃣ Test 2 - Model signature validation
       - name: Run model signature test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_signature.py
 
+      # 13️⃣ Test 3 - Model performance validation
       - name: Run model performance test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_performance.py
 
+      # 14️⃣ Promote model to production if all tests pass
       - name: Promote model to production
         if: success()
         env:
@@ -90,26 +105,36 @@ jobs:
         run: |
           python scripts/promote_model.py
 
+      # 15️⃣ Start Flask application with DagsHub credentials
       - name: Start Flask App
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+          DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
+          DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
         run: |
           nohup python flask_app/app.py &
 
+      # 16️⃣ Run Flask API tests to verify deployment
       - name: Run Flask API tests
         run: |
           pytest scripts/test_flask_api.py
 
+      # 17️⃣ Log in to Docker Hub for container publishing
       - name: Log in to Docker Hub
         run: |
           echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
+      # 18️⃣ Build Docker image for the application
       - name: Build Docker image
         run: |
           docker build -t kaustavwayne/youtube-chrome-plugin .
 
+      # 19️⃣ Tag the Docker image with latest
       - name: Tag Docker image
         run: |
           docker tag kaustavwayne/youtube-chrome-plugin kaustavwayne/youtube-chrome-plugin:latest
 
+      # 20️⃣ Push Docker image to Docker Hub
       - name: Push Docker image to Docker Hub
         run: |
           docker push kaustavwayne/youtube-chrome-plugin:latest
