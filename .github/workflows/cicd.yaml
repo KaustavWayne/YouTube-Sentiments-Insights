@@ -132,7 +132,7 @@ jobs:
           ENV NLTK_DATA=/usr/local/share/nltk_data
           RUN python -m nltk.downloader stopwords wordnet -d /usr/local/share/nltk_data
           EXPOSE 7860
-          CMD ["gunicorn", "-b", "0.0.0.0:7860", "flask_app.app:app", "--workers", "2"]
+          CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app", "--workers", "2"]
           """
 
           api.upload_file(
