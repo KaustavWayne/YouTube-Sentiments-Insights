@@ -115,9 +115,26 @@ jobs:
           nohup python flask_app/app.py &
 
       # 16️⃣ Run Flask API tests to verify deployment
-      - name: Run Flask API tests
+      
+
+      - name: Start Flask App and run API tests
+        env:
+          DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
+          DAGSHUB_USER: ${{ secrets.DAGSHUB_USER }}
+          DAGSHUB_REPO: ${{ secrets.DAGSHUB_REPO }}
         run: |
-          pytest scripts/test_flask_api.py
+          echo "Starting Flask app on port 7860..."
+          nohup python flask_app/app.py > flask.log 2>&1 &
+
+          echo "Waiting for Flask app to start..."
+          sleep 10
+
+          echo "Checking Flask app health..."
+          curl -I http://127.0.0.1:7860 || (echo "❌ Flask app failed to start!" && cat flask.log && exit 1)
+
+          echo "✅ Flask app is running. Starting tests..."
+          pytest scripts/test_flask_api.py --maxfail=1 --disable-warnings -q
+
 
       # 17️⃣ Log in to Docker Hub for container publishing
       - name: Log in to Docker Hub
