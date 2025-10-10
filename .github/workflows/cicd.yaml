@@ -42,8 +42,9 @@ jobs:
       # 4️⃣ Install dependencies
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade huggingface_hub
+          pip install --upgrade huggingface_hub pytest gunicorn mlflow
 
       # 5️⃣ Run DVC pipeline
       - name: Run DVC pipeline
@@ -51,7 +52,7 @@ jobs:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: dvc repro
 
-      # 6️⃣ Run model tests
+      # 6️⃣ Run MLflow model tests
       - name: Run model tests
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
@@ -60,8 +61,8 @@ jobs:
           pytest scripts/test_model_signature.py
           pytest scripts/test_model_performance.py
 
-      # 7️⃣ Promote model
-      - name: Promote model to production
+      # 7️⃣ Promote model to production
+      - name: Promote model
         if: success()
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
@@ -73,9 +74,9 @@ jobs:
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
-          nohup python flask_app/app.py > flask.log 2>&1 &
+          nohup gunicorn -b 127.0.0.1:7860 flask_app.app:app --workers 2 &
           sleep 10
-          curl -I http://127.0.0.1:7860 || (cat flask.log && exit 1)
+          curl -I http://127.0.0.1:7860 || (echo "❌ Flask app did not start" && exit 1)
           pytest scripts/test_flask_api.py --maxfail=1 --disable-warnings -q
 
       # 9️⃣ Log in to Docker Hub
@@ -91,8 +92,8 @@ jobs:
         if: success()
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/youtube-chrome-plugin:latest .
 
-      # 1️⃣1️⃣ Push Docker image to Docker Hub
-      - name: Push Docker image to Docker Hub
+      # 1️⃣1️⃣ Push Docker image
+      - name: Push Docker image
         if: success()
         run: docker push ${{ secrets.DOCKER_USERNAME }}/youtube-chrome-plugin:latest
 
@@ -116,8 +117,6 @@ jobs:
           repo_name = "youtube-chrome-plugin"
 
           api = HfApi()
-
-          # Create the Space if it doesn't exist
           api.create_repo(
               repo_id=f"{HF_USERNAME}/{repo_name}",
               repo_type="space",
@@ -126,20 +125,15 @@ jobs:
               token=HF_TOKEN
           )
 
-          # Prepare Dockerfile for HF Space
           dockerfile_content = f"""
           FROM {DOCKER_USERNAME}/youtube-chrome-plugin:latest
-
           ENV DAGSHUB_PAT={DAGSHUB_PAT}
           ENV NLTK_DATA=/usr/local/share/nltk_data
           RUN python -m nltk.downloader stopwords wordnet -d /usr/local/share/nltk_data
-
           EXPOSE 7860
-
           CMD ["gunicorn", "-b", "0.0.0.0:7860", "flask_app.app:app", "--workers", "2"]
           """
 
-          # Upload Dockerfile
           api.upload_file(
               path_or_fileobj=dockerfile_content.encode("utf-8"),
               path_in_repo="Dockerfile",
