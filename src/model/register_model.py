@@ -1,5 +1,4 @@
 # register model
-
 import json
 import mlflow
 import logging
