@@ -1,7 +1,7 @@
 # 🎬 YouTube Chrome Comment Analyzer
 
 <p align="center">
-  <img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube">
+  <img src="https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube" width="600">
 </p>
 
 <p align="center">
@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/Flask-2.3.3-orange?style=for-the-badge&logo=flask&logoColor=white" alt="Flask">
   <img src="https://img.shields.io/badge/Docker-latest-blue?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/HuggingFace-Spaces-yellow?style=for-the-badge&logo=huggingface&logoColor=black" alt="HuggingFace">
-  <img src="https://img.shields.io/badge/MLflow-2.17.0-lightgrey?style=for-the-badge&logo=mlflow&logoColor=black" alt="MLflow">
+  <img src="https://img.shields.io/badge/MLflow-2.22.0-lightgrey?style=for-the-badge&logo=mlflow&logoColor=black" alt="MLflow">
   <img src="https://img.shields.io/badge/scikit--learn-latest-orange?style=for-the-badge&logo=scikit-learn&logoColor=white" alt="scikit-learn">
   <img src="https://img.shields.io/badge/LightGBM-latest-blue?style=for-the-badge&logo=lightgbm&logoColor=white" alt="LightGBM">
   <img src="https://img.shields.io/badge/Chrome_Extension-yes-red?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Chrome Extension">
