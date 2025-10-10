@@ -1,4 +1,4 @@
-name: CICD Pipeline (DagsHub)
+name: CICD Pipeline (DagsHub + Hugging Face)
 
 on: push
 
@@ -13,6 +13,8 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HF_USERNAME: ${{ secrets.HF_USERNAME }}
 
     steps:
       # 1️⃣ Checkout repository
@@ -34,12 +36,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # 4️⃣ Install Python dependencies
+      # 4️⃣ Install dependencies
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      # 5️⃣ Configure DVC to connect with DagsHub remote storage
+      # 5️⃣ Configure DagsHub DVC remote
       - name: Configure DagsHub DVC remote
         run: |
           dvc remote add -d origin https://dagshub.com/$DAGSHUB_USER/$DAGSHUB_REPO.dvc || true
@@ -47,23 +49,23 @@ jobs:
           dvc remote modify origin --local user $DAGSHUB_USER
           dvc remote modify origin --local password $DAGSHUB_PAT
 
-      # 6️⃣ Reproduce pipeline using DVC
+      # 6️⃣ Run DVC pipeline
       - name: Run DVC pipeline
         run: |
           dvc repro
 
-      # 7️⃣ Push DVC-tracked data and models to DagsHub
+      # 7️⃣ Push DVC-tracked data to DagsHub
       - name: Push DVC-tracked data to DagsHub
         run: |
           dvc push
 
-      # 8️⃣ Configure Git for committing pipeline outputs
+      # 8️⃣ Configure Git
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      # 9️⃣ Commit and push updated files if any DVC outputs changed
+      # 9️⃣ Commit & push changes if any
       - name: Commit and push changes
         if: ${{ github.actor != 'github-actions[bot]' }}
         run: |
@@ -71,33 +73,33 @@ jobs:
           git commit -m "Automated commit of DVC outputs and updated code" || echo "No changes to commit"
           git push origin ${{ github.ref_name }}
 
-      # 🔟 Install pytest for running automated tests
+      # 🔟 Install pytest
       - name: Install test dependencies
         run: |
           pip install pytest
 
-      # 11️⃣ Test 1 - Model loading validation
+      # 11️⃣ Model loading test
       - name: Run model loading test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_load_model.py
 
-      # 12️⃣ Test 2 - Model signature validation
+      # 12️⃣ Model signature test
       - name: Run model signature test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_signature.py
 
-      # 13️⃣ Test 3 - Model performance validation
+      # 13️⃣ Model performance test
       - name: Run model performance test
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
         run: |
           pytest scripts/test_model_performance.py
 
-      # 14️⃣ Promote model to production if all tests pass
+      # 14️⃣ Promote model to production
       - name: Promote model to production
         if: success()
         env:
@@ -105,7 +107,7 @@ jobs:
         run: |
           python scripts/promote_model.py
 
-      # 15️⃣ Start Flask application with DagsHub credentials
+      # 15️⃣ Start Flask App locally for testing
       - name: Start Flask App
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
@@ -114,9 +116,7 @@ jobs:
         run: |
           nohup python flask_app/app.py &
 
-      # 16️⃣ Run Flask API tests to verify deployment
-      
-
+      # 16️⃣ Run Flask API tests
       - name: Start Flask App and run API tests
         env:
           DAGSHUB_PAT: ${{ secrets.DAGSHUB_PAT }}
@@ -125,28 +125,23 @@ jobs:
         run: |
           echo "Starting Flask app on port 7860..."
           nohup python flask_app/app.py > flask.log 2>&1 &
-
-          echo "Waiting for Flask app to start..."
           sleep 10
-
           echo "Checking Flask app health..."
           curl -I http://127.0.0.1:7860 || (echo "❌ Flask app failed to start!" && cat flask.log && exit 1)
-
           echo "✅ Flask app is running. Starting tests..."
           pytest scripts/test_flask_api.py --maxfail=1 --disable-warnings -q
 
-
-      # 17️⃣ Log in to Docker Hub for container publishing
+      # 17️⃣ Log in to Docker Hub
       - name: Log in to Docker Hub
         run: |
           echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
 
-      # 18️⃣ Build Docker image for the application
+      # 18️⃣ Build Docker image
       - name: Build Docker image
         run: |
           docker build -t kaustavwayne/youtube-chrome-plugin .
 
-      # 19️⃣ Tag the Docker image with latest
+      # 19️⃣ Tag Docker image
       - name: Tag Docker image
         run: |
           docker tag kaustavwayne/youtube-chrome-plugin kaustavwayne/youtube-chrome-plugin:latest
@@ -155,3 +150,27 @@ jobs:
       - name: Push Docker image to Docker Hub
         run: |
           docker push kaustavwayne/youtube-chrome-plugin:latest
+
+      # 21️⃣ 🚀 Deploy Flask Docker App to Hugging Face Spaces
+      - name: Deploy Flask App to Hugging Face
+        if: success()
+        run: |
+          echo "🔐 Logging into Hugging Face..."
+          pip install huggingface_hub
+          huggingface-cli login --token $HF_TOKEN
+
+          echo "🚀 Creating or updating Hugging Face Space..."
+          huggingface-cli repo create $HF_USERNAME/youtube-chrome-plugin --type=space --sdk=docker --yes || true
+
+          rm -rf hf_space
+          git clone https://huggingface.co/spaces/$HF_USERNAME/youtube-chrome-plugin hf_space
+          cp Dockerfile hf_space/
+          cp -r flask_app hf_space/
+          cp requirements.txt hf_space/
+          echo "sdk: docker" > hf_space/.huggingface.yml
+          echo "app_port: 7860" >> hf_space/.huggingface.yml
+
+          cd hf_space
+          git add .
+          git commit -m "🚀 Auto-deploy Flask Docker app to Hugging Face Space" || echo "No changes to commit"
+          git push

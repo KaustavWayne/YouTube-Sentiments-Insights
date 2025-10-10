@@ -78,6 +78,9 @@ model, vectorizer = load_model_and_vectorizer(
     "yt_chrome_plug_in_model", "1", "./tfidf_vectorizer.pkl"
 )
 
+@app.route('/')
+def home():
+    return "Welcome to the flask api"
 # ------------------------------
 # Flask routes
 # ------------------------------
