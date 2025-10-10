@@ -44,7 +44,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install --upgrade huggingface_hub pytest gunicorn mlflow
+          pip install --upgrade huggingface_hub pytest gunicorn
+          pip install "mlflow<3"
 
       # 5️⃣ Run DVC pipeline
       - name: Run DVC pipeline
